@@ -49,32 +49,57 @@ jobs:
                       if not line or line.startswith('!') or line.startswith('#'):
                           continue
                       
+                      # Пропускаем правила с модификаторами, которые не поддерживаются
+                      if '$' in line and any(mod in line for mod in ['$important', '$popup', '$third-party']):
+                          line = line.split('$')[0]
+                      
+                      # Пропускаем правила с wildcards - они не поддерживаются в Shadowrocket DOMAIN-SUFFIX
+                      if '*' in line:
+                          # Пытаемся извлечь основной домен после последней точки и звездочки
+                          # ||tnc*.tiktokv.com^ -> tiktokv.com
+                          # ||ad-*.example.com^ -> example.com
+                          match = re.search(r'\*\.([a-zA-Z0-9][a-zA-Z0-9\-]*\.[a-zA-Z0-9][a-zA-Z0-9\-\.]*[a-zA-Z0-9])\^?', line)
+                          if match:
+                              domain = match.group(1).strip('.')
+                              # Проверяем что это реальный домен (есть точка, нет звездочек)
+                              if domain and '.' in domain and '*' not in domain and len(domain.split('.')) >= 2:
+                                  # Проверяем что домен достаточно специфичный (не .com, не .cn)
+                                  parts = domain.split('.')
+                                  if len(parts[-2]) > 3:  # Предпоследняя часть должна быть длиннее 3 символов
+                                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                          continue
+                      
                       domain = None
                       
+                      # ||example.com^ - простое правило домена
                       if line.startswith('||') and line.endswith('^'):
-                          domain = line[2:-1]
-                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                          domain = line[2:-1].strip('.')
+                          if domain and '/' not in domain and '*' not in domain:
+                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
                       
+                      # ||example.com^... с модификаторами
                       elif line.startswith('||') and '^' in line:
-                          domain = re.match(r'\|\|([^/\^$]+)', line)
-                          if domain:
-                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain.group(1)}")
+                          match = re.match(r'\|\|([^/\^$\*]+)', line)
+                          if match:
+                              domain = match.group(1).strip('.')
+                              if domain and '/' not in domain and '*' not in domain:
+                                  shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
                       
+                      # |example.com^ - точное совпадение
                       elif line.startswith('|') and not line.startswith('||'):
-                          domain = re.match(r'\|([^/\^$]+)', line)
-                          if domain:
-                              shadowrocket_rules.append(f"DOMAIN,{domain.group(1)}")
+                          match = re.match(r'\|([^/\^$\*]+)', line)
+                          if match:
+                              domain = match.group(1).strip('.')
+                              if domain and '/' not in domain and '*' not in domain:
+                                  shadowrocket_rules.append(f"DOMAIN,{domain}")
                       
-                      elif '*' in line:
-                          keyword = re.sub(r'[\|\^\$\*]', '', line)
-                          keyword = re.sub(r'[\/:].*$', '', keyword)
-                          if keyword and len(keyword) > 2:
-                              shadowrocket_rules.append(f"DOMAIN-KEYWORD,{keyword}")
-                      
+                      # 0.0.0.0 или 127.0.0.1 hosts формат
                       elif line.startswith(('0.0.0.0', '127.0.0.1')):
                           parts = line.split()
                           if len(parts) >= 2:
-                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{parts[1]}")
+                              domain = parts[1].strip('.')
+                              if domain and '*' not in domain and '/' not in domain:
+                                  shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
               
               seen = set()
               unique_rules = []
