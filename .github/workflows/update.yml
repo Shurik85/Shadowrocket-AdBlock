@@ -23,14 +23,14 @@ jobs:
 
     - name: Convert to DOMAIN-SUFFIX format
       run: |
-        sed -e 's/^||//' \
-            -e 's/\^.*$//' \
-            filter_raw.txt \
-        | grep -v '^!' \
-        | grep -v '^@@' \
-        | grep -v '^$' \
-        | grep -v '\*' \
-        | grep -v '/' \
+        grep '^||' filter_raw.txt \
+        | sed 's/^||//' \
+        | sed 's/\^.*//' \
+        | sed 's/\/.*//' \
+        | tr -d '\r' \
+        | grep -E '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' \
+        | grep -v '^-'
+        | grep -v '\.-'
         | sort -u \
         | awk '{print "DOMAIN-SUFFIX,"$0}' \
         > adguard_domain_suffix.txt
