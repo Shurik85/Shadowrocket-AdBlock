@@ -42,6 +42,16 @@ jobs:
               shadowrocket_rules.append(f"# Source: https://filters.adtidy.org/dns/filter_1_ios.txt")
               shadowrocket_rules.append("")
               
+              def is_ip_address(s):
+                  """Проверяет, является ли строка IP-адресом"""
+                  parts = s.split('.')
+                  if len(parts) != 4:
+                      return False
+                  try:
+                      return all(0 <= int(part) <= 255 for part in parts)
+                  except ValueError:
+                      return False
+              
               with open(input_file, 'r', encoding='utf-8') as f:
                   for line in f:
                       line = line.strip()
@@ -66,7 +76,8 @@ jobs:
                                   # Проверяем что домен достаточно специфичный (не .com, не .cn)
                                   parts = domain.split('.')
                                   if len(parts[-2]) > 3:  # Предпоследняя часть должна быть длиннее 3 символов
-                                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                                      if not is_ip_address(domain):
+                                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
                           continue
                       
                       domain = None
@@ -75,7 +86,10 @@ jobs:
                       if line.startswith('||') and line.endswith('^'):
                           domain = line[2:-1].strip('.')
                           if domain and '/' not in domain and '*' not in domain:
-                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                              if is_ip_address(domain):
+                                  shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
+                              else:
+                                  shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
                       
                       # ||example.com^... с модификаторами
                       elif line.startswith('||') and '^' in line:
@@ -83,7 +97,10 @@ jobs:
                           if match:
                               domain = match.group(1).strip('.')
                               if domain and '/' not in domain and '*' not in domain:
-                                  shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                                  if is_ip_address(domain):
+                                      shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
+                                  else:
+                                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
                       
                       # |example.com^ - точное совпадение
                       elif line.startswith('|') and not line.startswith('||'):
@@ -91,7 +108,10 @@ jobs:
                           if match:
                               domain = match.group(1).strip('.')
                               if domain and '/' not in domain and '*' not in domain:
-                                  shadowrocket_rules.append(f"DOMAIN,{domain}")
+                                  if is_ip_address(domain):
+                                      shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
+                                  else:
+                                      shadowrocket_rules.append(f"DOMAIN,{domain}")
                       
                       # 0.0.0.0 или 127.0.0.1 hosts формат
                       elif line.startswith(('0.0.0.0', '127.0.0.1')):
@@ -99,7 +119,10 @@ jobs:
                           if len(parts) >= 2:
                               domain = parts[1].strip('.')
                               if domain and '*' not in domain and '/' not in domain:
-                                  shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                                  if is_ip_address(domain):
+                                      shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
+                                  else:
+                                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
               
               seen = set()
               unique_rules = []
