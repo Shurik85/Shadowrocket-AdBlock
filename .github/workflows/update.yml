@@ -1,0 +1,49 @@
+name: Update AdGuard DNS Domain List
+
+on:
+  schedule:
+    # ежедневно в 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download AdGuard DNS filter
+      run: |
+        curl -s https://filters.adtidy.org/dns/filter_1_ios.txt -o filter_raw.txt
+
+    - name: Convert to DOMAIN-SUFFIX format
+      run: |
+        sed -e 's/^||//' \
+            -e 's/\^.*$//' \
+            filter_raw.txt \
+        | grep -v '^!' \
+        | grep -v '^@@' \
+        | grep -v '^$' \
+        | grep -v '\*' \
+        | grep -v '/' \
+        | sort -u \
+        | awk '{print "DOMAIN-SUFFIX,"$0}' \
+        > adguard_domain_suffix.txt
+
+        rm -f filter_raw.txt
+
+    - name: Commit and push if changed
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        git add adguard_domain_suffix.txt
+
+        if git diff --cached --quiet; then
+          echo "No changes detected"
+        else
+          git commit -m "Auto update AdGuard DNS list $(date -u +'%Y-%m-%d')"
+          git push
+        fi
