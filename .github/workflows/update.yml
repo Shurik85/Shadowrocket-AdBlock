@@ -1,87 +1,133 @@
-name: Update AdGuard DNS Domain List
-
-permissions:
-  contents: write
+name: Update Shadowrocket Rules
 
 on:
-  schedule:
-    - cron: '0 4 * * *'
-  workflow_dispatch:
+schedule:
+# Запуск каждый день в 00:00 UTC
+- cron: ‘0 0 * * *’
+workflow_dispatch: # Возможность запустить вручную
+push:
+branches:
+- main
+paths:
+- ‘.github/workflows/update-shadowrocket-rules.yml’
 
 jobs:
-  update:
-    runs-on: ubuntu-latest
+convert-rules:
+runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Download AdGuard DNS filter
-      run: |
-        curl -s https://filters.adtidy.org/dns/filter_1_ios.txt -o filter_raw.txt
-
-    - name: Convert to clean Shadowrocket format
-      run: |
-        > adguard_domain_suffix.txt
-
-        grep '^||' filter_raw.txt \
-        | sed 's/^||//' \
-        | sed 's/\^.*//' \
-        | sed 's/\/.*//' \
-        | tr -d '\r' \
-        | while read line; do
-
-            # пропускаем пустые
-            if [ -z "$line" ]; then
-              continue
-            fi
-
-            # если есть wildcard
-            if echo "$line" | grep -q '\*'; then
-
-              # если внутри есть нормальный домен
-              domain=$(echo "$line" | grep -oE '[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | head -n1)
-
-              if [ -n "$domain" ]; then
-                # проверка что не начинается с точки или дефиса
-                if ! echo "$domain" | grep -Eq '^[-.]'; then
-                  echo "DOMAIN-SUFFIX,$domain"
-                fi
-              else
-                # fallback → keyword
-                keyword=$(echo "$line" | tr -d '*')
-                keyword=$(echo "$keyword" | sed 's/^[.-]*//; s/[.-]*$//')
-
-                if echo "$keyword" | grep -Eq '[A-Za-z0-9]{4,}'; then
-                  echo "DOMAIN-KEYWORD,$keyword"
-                fi
-              fi
-
-            else
-              # без wildcard → проверяем валидный домен
-              if echo "$line" | grep -Eq '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
-                if ! echo "$line" | grep -Eq '^[-.]'; then
-                  echo "DOMAIN-SUFFIX,$line"
-                fi
-              fi
-            fi
-
-        done | sort -u >> adguard_domain_suffix.txt
-
-        rm -f filter_raw.txt
-
-    - name: Commit and push if changed
-      env:
-        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-        git add adguard_domain_suffix.txt
-
-        if git diff --cached --quiet; then
-          echo "No changes detected"
-        else
-          git commit -m "Auto update AdGuard DNS list $(date -u +'%Y-%m-%d')"
-          git push "https://x-access-token:${REPO_TOKEN}@github.com/${{ github.repository }}.git"
-        fi
+```
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+  
+  - name: Set up Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+  
+  - name: Download AdGuard filter
+    run: |
+      curl -o adguard_filter.txt https://filters.adtidy.org/dns/filter_1_ios.txt
+  
+  - name: Convert to Shadowrocket format
+    run: |
+      python3 << 'EOF'
+      import re
+      from datetime import datetime
+      
+      def convert_adguard_to_shadowrocket(input_file, output_file):
+          """
+          Конвертирует правила AdGuard в формат Shadowrocket
+          """
+          shadowrocket_rules = []
+          
+          # Заголовок файла
+          shadowrocket_rules.append(f"# Shadowrocket Rules")
+          shadowrocket_rules.append(f"# Converted from AdGuard DNS filter")
+          shadowrocket_rules.append(f"# Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+          shadowrocket_rules.append(f"# Source: https://filters.adtidy.org/dns/filter_1_ios.txt")
+          shadowrocket_rules.append("")
+          
+          with open(input_file, 'r', encoding='utf-8') as f:
+              for line in f:
+                  line = line.strip()
+                  
+                  # Пропускаем комментарии и пустые строки
+                  if not line or line.startswith('!') or line.startswith('#'):
+                      continue
+                  
+                  # Обработка правил AdGuard
+                  domain = None
+                  
+                  # ||example.com^ - блокировка домена и всех поддоменов
+                  if line.startswith('||') and line.endswith('^'):
+                      domain = line[2:-1]
+                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                  
+                  # ||example.com^$important или с другими модификаторами
+                  elif line.startswith('||') and '^' in line:
+                      domain = re.match(r'\|\|([^/\^$]+)', line)
+                      if domain:
+                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain.group(1)}")
+                  
+                  # |example.com^ - точное совпадение домена
+                  elif line.startswith('|') and not line.startswith('||'):
+                      domain = re.match(r'\|([^/\^$]+)', line)
+                      if domain:
+                          shadowrocket_rules.append(f"DOMAIN,{domain.group(1)}")
+                  
+                  # Правила с wildcards - конвертируем в DOMAIN-KEYWORD
+                  elif '*' in line:
+                      # Извлекаем часть между * или после ||
+                      keyword = re.sub(r'[\|\^\$\*]', '', line)
+                      keyword = re.sub(r'[\/:].*$', '', keyword)
+                      if keyword and len(keyword) > 2:
+                          shadowrocket_rules.append(f"DOMAIN-KEYWORD,{keyword}")
+                  
+                  # 0.0.0.0 example.com или 127.0.0.1 example.com
+                  elif line.startswith(('0.0.0.0', '127.0.0.1')):
+                      parts = line.split()
+                      if len(parts) >= 2:
+                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{parts[1]}")
+          
+          # Удаляем дубликаты, сохраняя порядок
+          seen = set()
+          unique_rules = []
+          for rule in shadowrocket_rules:
+              if rule not in seen:
+                  seen.add(rule)
+                  unique_rules.append(rule)
+          
+          # Записываем результат
+          with open(output_file, 'w', encoding='utf-8') as f:
+              f.write('\n'.join(unique_rules))
+          
+          print(f"Конвертировано правил: {len(unique_rules) - 5}")  # Минус строки заголовка
+          print(f"Файл сохранён: {output_file}")
+      
+      # Запуск конвертации
+      convert_adguard_to_shadowrocket('adguard_filter.txt', 'shadowrocket_rules.conf')
+      EOF
+  
+  - name: Check if there are changes
+    id: changes
+    run: |
+      git diff --quiet shadowrocket_rules.conf || echo "changed=true" >> $GITHUB_OUTPUT
+  
+  - name: Commit and push if changed
+    if: steps.changes.outputs.changed == 'true'
+    run: |
+      git config --local user.email "github-actions[bot]@users.noreply.github.com"
+      git config --local user.name "github-actions[bot]"
+      git add shadowrocket_rules.conf
+      git commit -m "Update Shadowrocket rules - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+      git push
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  - name: Upload artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: shadowrocket-rules
+      path: shadowrocket_rules.conf
+      retention-days: 30
