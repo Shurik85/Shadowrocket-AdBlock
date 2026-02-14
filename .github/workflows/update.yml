@@ -35,6 +35,8 @@ jobs:
         rm -f filter_raw.txt
 
     - name: Commit and push if changed
+      env:
+        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -45,5 +47,5 @@ jobs:
           echo "No changes detected"
         else
           git commit -m "Auto update AdGuard DNS list $(date -u +'%Y-%m-%d')"
-          git push
+          git push "https://x-access-token:${REPO_TOKEN}@github.com/${{ github.repository }}.git"
         fi
