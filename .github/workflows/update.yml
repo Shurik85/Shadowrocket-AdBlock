@@ -5,7 +5,6 @@ permissions:
 
 on:
   schedule:
-    # ежедневно в 04:00 UTC
     - cron: '0 4 * * *'
   workflow_dispatch:
 
@@ -21,19 +20,53 @@ jobs:
       run: |
         curl -s https://filters.adtidy.org/dns/filter_1_ios.txt -o filter_raw.txt
 
-    - name: Convert to DOMAIN-SUFFIX format
+    - name: Convert to clean Shadowrocket format
       run: |
+        > adguard_domain_suffix.txt
+
         grep '^||' filter_raw.txt \
         | sed 's/^||//' \
         | sed 's/\^.*//' \
         | sed 's/\/.*//' \
         | tr -d '\r' \
-        | grep -E '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' \
-        | grep -v '^-'
-        | grep -v '\.-'
-        | sort -u \
-        | awk '{print "DOMAIN-SUFFIX,"$0}' \
-        > adguard_domain_suffix.txt
+        | while read line; do
+
+            # пропускаем пустые
+            if [ -z "$line" ]; then
+              continue
+            fi
+
+            # если есть wildcard
+            if echo "$line" | grep -q '\*'; then
+
+              # если внутри есть нормальный домен
+              domain=$(echo "$line" | grep -oE '[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | head -n1)
+
+              if [ -n "$domain" ]; then
+                # проверка что не начинается с точки или дефиса
+                if ! echo "$domain" | grep -Eq '^[-.]'; then
+                  echo "DOMAIN-SUFFIX,$domain"
+                fi
+              else
+                # fallback → keyword
+                keyword=$(echo "$line" | tr -d '*')
+                keyword=$(echo "$keyword" | sed 's/^[.-]*//; s/[.-]*$//')
+
+                if echo "$keyword" | grep -Eq '[A-Za-z0-9]{4,}'; then
+                  echo "DOMAIN-KEYWORD,$keyword"
+                fi
+              fi
+
+            else
+              # без wildcard → проверяем валидный домен
+              if echo "$line" | grep -Eq '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
+                if ! echo "$line" | grep -Eq '^[-.]'; then
+                  echo "DOMAIN-SUFFIX,$line"
+                fi
+              fi
+            fi
+
+        done | sort -u >> adguard_domain_suffix.txt
 
         rm -f filter_raw.txt
 
