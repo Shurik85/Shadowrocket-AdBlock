@@ -2,115 +2,115 @@ name: Update Shadowrocket Rules
 
 on:
   schedule:
-    - cron: ‘0 0 * * *’
+    - cron: '0 0 * * *'
   workflow_dispatch:
   push:
-  branches:
-    - main
-  paths:
-    - ‘.github/workflows/update-shadowrocket-rules.yml’
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-shadowrocket-rules.yml'
 
 jobs:
   convert-rules:
-  runs-on: ubuntu-latest
-
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
-  
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.11'
-  
-  - name: Download AdGuard filter
-    run: |
-      curl -o adguard_filter.txt https://filters.adtidy.org/dns/filter_1_ios.txt
-  
-  - name: Convert to Shadowrocket format
-    run: |
-      python3 << 'EOF'
-      import re
-      from datetime import datetime
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      def convert_adguard_to_shadowrocket(input_file, output_file):
-          shadowrocket_rules = []
-          
-          shadowrocket_rules.append(f"# Shadowrocket Rules")
-          shadowrocket_rules.append(f"# Converted from AdGuard DNS filter")
-          shadowrocket_rules.append(f"# Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-          shadowrocket_rules.append(f"# Source: https://filters.adtidy.org/dns/filter_1_ios.txt")
-          shadowrocket_rules.append("")
-          
-          with open(input_file, 'r', encoding='utf-8') as f:
-              for line in f:
-                  line = line.strip()
-                  
-                  if not line or line.startswith('!') or line.startswith('#'):
-                      continue
-                  
-                  domain = None
-                  
-                  if line.startswith('||') and line.endswith('^'):
-                      domain = line[2:-1]
-                      shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
-                  
-                  elif line.startswith('||') and '^' in line:
-                      domain = re.match(r'\|\|([^/\^$]+)', line)
-                      if domain:
-                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain.group(1)}")
-                  
-                  elif line.startswith('|') and not line.startswith('||'):
-                      domain = re.match(r'\|([^/\^$]+)', line)
-                      if domain:
-                          shadowrocket_rules.append(f"DOMAIN,{domain.group(1)}")
-                  
-                  elif '*' in line:
-                      keyword = re.sub(r'[\|\^\$\*]', '', line)
-                      keyword = re.sub(r'[\/:].*$', '', keyword)
-                      if keyword and len(keyword) > 2:
-                          shadowrocket_rules.append(f"DOMAIN-KEYWORD,{keyword}")
-                  
-                  elif line.startswith(('0.0.0.0', '127.0.0.1')):
-                      parts = line.split()
-                      if len(parts) >= 2:
-                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{parts[1]}")
-          
-          seen = set()
-          unique_rules = []
-          for rule in shadowrocket_rules:
-              if rule not in seen:
-                  seen.add(rule)
-                  unique_rules.append(rule)
-          
-          with open(output_file, 'w', encoding='utf-8') as f:
-              f.write('\n'.join(unique_rules))
-          
-          print(f"Converted rules: {len(unique_rules) - 5}")
-          print(f"File saved: {output_file}")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       
-      convert_adguard_to_shadowrocket('adguard_filter.txt', 'shadowrocket_rules.conf')
-      EOF
-  
-  - name: Check if there are changes
-    id: changes
-    run: |
-      git diff --quiet shadowrocket_rules.conf || echo "changed=true" >> $GITHUB_OUTPUT
-  
-  - name: Commit and push if changed
-    if: steps.changes.outputs.changed == 'true'
-    run: |
-      git config --local user.email "github-actions[bot]@users.noreply.github.com"
-      git config --local user.name "github-actions[bot]"
-      git add shadowrocket_rules.conf
-      git commit -m "Update Shadowrocket rules - $(date +'%Y-%m-%d %H:%M:%S UTC')"
-      git push
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
-  - name: Upload artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: shadowrocket-rules
-      path: shadowrocket_rules.conf
-      retention-days: 30
+      - name: Download AdGuard filter
+        run: |
+          curl -o adguard_filter.txt https://filters.adtidy.org/dns/filter_1_ios.txt
+      
+      - name: Convert to Shadowrocket format
+        run: |
+          python3 << 'EOF'
+          import re
+          from datetime import datetime
+          
+          def convert_adguard_to_shadowrocket(input_file, output_file):
+              shadowrocket_rules = []
+              
+              shadowrocket_rules.append(f"# Shadowrocket Rules")
+              shadowrocket_rules.append(f"# Converted from AdGuard DNS filter")
+              shadowrocket_rules.append(f"# Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+              shadowrocket_rules.append(f"# Source: https://filters.adtidy.org/dns/filter_1_ios.txt")
+              shadowrocket_rules.append("")
+              
+              with open(input_file, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      
+                      if not line or line.startswith('!') or line.startswith('#'):
+                          continue
+                      
+                      domain = None
+                      
+                      if line.startswith('||') and line.endswith('^'):
+                          domain = line[2:-1]
+                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                      
+                      elif line.startswith('||') and '^' in line:
+                          domain = re.match(r'\|\|([^/\^$]+)', line)
+                          if domain:
+                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain.group(1)}")
+                      
+                      elif line.startswith('|') and not line.startswith('||'):
+                          domain = re.match(r'\|([^/\^$]+)', line)
+                          if domain:
+                              shadowrocket_rules.append(f"DOMAIN,{domain.group(1)}")
+                      
+                      elif '*' in line:
+                          keyword = re.sub(r'[\|\^\$\*]', '', line)
+                          keyword = re.sub(r'[\/:].*$', '', keyword)
+                          if keyword and len(keyword) > 2:
+                              shadowrocket_rules.append(f"DOMAIN-KEYWORD,{keyword}")
+                      
+                      elif line.startswith(('0.0.0.0', '127.0.0.1')):
+                          parts = line.split()
+                          if len(parts) >= 2:
+                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{parts[1]}")
+              
+              seen = set()
+              unique_rules = []
+              for rule in shadowrocket_rules:
+                  if rule not in seen:
+                      seen.add(rule)
+                      unique_rules.append(rule)
+              
+              with open(output_file, 'w', encoding='utf-8') as f:
+                  f.write('\n'.join(unique_rules))
+              
+              print(f"Converted rules: {len(unique_rules) - 5}")
+              print(f"File saved: {output_file}")
+          
+          convert_adguard_to_shadowrocket('adguard_filter.txt', 'shadowrocket_rules.conf')
+          EOF
+      
+      - name: Check if there are changes
+        id: changes
+        run: |
+          git diff --quiet shadowrocket_rules.conf || echo "changed=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and push if changed
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add shadowrocket_rules.conf
+          git commit -m "Update Shadowrocket rules - $(date +'%Y-%m-%d %H:%M:%S UTC')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadowrocket-rules
+          path: shadowrocket_rules.conf
+          retention-days: 30
