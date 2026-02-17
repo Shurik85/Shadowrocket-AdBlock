@@ -39,6 +39,7 @@ jobs:
               # Список исключений — домены, которые не должны попасть в итоговый список
               whitelist = {
                   'ozon.ru',
+                  'ozone.ru',
               }
               
               def is_whitelisted(domain):
