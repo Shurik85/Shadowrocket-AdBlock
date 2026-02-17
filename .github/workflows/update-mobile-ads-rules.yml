@@ -23,20 +23,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download AdGuard filters
+      - name: Download AdGuard filter
         run: |
-          curl -o filter_2.txt  https://filters.adtidy.org/ios/filters/2_optimized.txt
-          curl -o filter_11.txt https://filters.adtidy.org/ios/filters/11_optimized.txt
-          curl -o filter_3.txt  https://filters.adtidy.org/ios/filters/3_optimized.txt
-          curl -o filter_4.txt  https://filters.adtidy.org/ios/filters/4_optimized.txt
-          curl -o filter_14.txt https://filters.adtidy.org/ios/filters/14_optimized.txt
-          curl -o filter_18.txt https://filters.adtidy.org/ios/filters/18_optimized.txt
-          curl -o filter_19.txt https://filters.adtidy.org/ios/filters/19_optimized.txt
-          curl -o filter_20.txt https://filters.adtidy.org/ios/filters/20_optimized.txt
-          curl -o filter_21.txt https://filters.adtidy.org/ios/filters/21_optimized.txt
-          curl -o filter_22.txt https://filters.adtidy.org/ios/filters/22_optimized.txt
-          curl -o filter_15.txt https://filters.adtidy.org/ios/filters/15_optimized.txt
-          curl -o filter_1.txt  https://filters.adtidy.org/ios/filters/1_optimized.txt
+          curl -o adguard_mobile_ads.txt https://filters.adtidy.org/ios/filters/15_optimized.txt
 
       - name: Convert to Shadowrocket format
         run: |
@@ -45,7 +34,7 @@ jobs:
           import os
           from datetime import datetime
 
-          def convert_adguard_to_shadowrocket(input_files, output_file, existing_rules_file):
+          def convert_adguard_to_shadowrocket(input_file, output_file, existing_rules_file):
 
               # Список исключений
               whitelist = {
@@ -69,14 +58,13 @@ jobs:
                           return True
                   return False
 
-              def is_duplicate(domain, seen_domains):
-                  """Проверяет пересечение с первым списком и уже обработанными правилами"""
-                  if domain in seen_domains:
+              def is_duplicate(domain):
+                  if domain in existing_domains:
                       return True
                   parts = domain.split('.')
                   for i in range(1, len(parts)):
                       parent = '.'.join(parts[i:])
-                      if parent in seen_domains:
+                      if parent in existing_domains:
                           return True
                   return False
 
@@ -127,117 +115,78 @@ jobs:
                   return None
 
               # Загружаем существующие правила из первого списка
-              seen_domains = set()
+              existing_domains = set()
               if os.path.exists(existing_rules_file):
                   with open(existing_rules_file, 'r', encoding='utf-8') as f:
                       for line in f:
                           line = line.strip()
                           if line.startswith('DOMAIN-SUFFIX,'):
-                              seen_domains.add(line.replace('DOMAIN-SUFFIX,', ''))
+                              existing_domains.add(line.replace('DOMAIN-SUFFIX,', ''))
                           elif line.startswith('DOMAIN,'):
-                              seen_domains.add(line.replace('DOMAIN,', ''))
+                              existing_domains.add(line.replace('DOMAIN,', ''))
                           elif line.startswith('IP-CIDR,'):
-                              seen_domains.add(line.replace('IP-CIDR,', '').replace('/32', ''))
-                  print(f"Loaded {len(seen_domains)} existing rules from {existing_rules_file}")
+                              existing_domains.add(line.replace('IP-CIDR,', '').replace('/32', ''))
+                  print(f"Loaded {len(existing_domains)} existing rules from {existing_rules_file}")
 
               shadowrocket_rules = []
               shadowrocket_rules.append(f"# Shadowrocket Mobile Ads Rules")
-              shadowrocket_rules.append(f"# Converted from AdGuard filters (iOS)")
+              shadowrocket_rules.append(f"# Converted from AdGuard filter (iOS)")
               shadowrocket_rules.append(f"# Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-              shadowrocket_rules.append(f"# Sources:")
-              for url in [
-                  'https://filters.adtidy.org/ios/filters/2_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/11_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/3_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/4_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/14_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/18_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/19_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/20_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/21_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/22_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/15_optimized.txt',
-                  'https://filters.adtidy.org/ios/filters/1_optimized.txt',
-              ]:
-                  shadowrocket_rules.append(f"#   {url}")
+              shadowrocket_rules.append(f"# Source: https://filters.adtidy.org/ios/filters/15_optimized.txt")
               shadowrocket_rules.append("")
 
-              total_skipped_whitelist = 0
-              total_skipped_duplicate = 0
-              total_added = 0
+              skipped_whitelist = 0
+              skipped_duplicate = 0
+              added = 0
 
-              for input_file in input_files:
-                  if not os.path.exists(input_file):
-                      print(f"File not found, skipping: {input_file}")
-                      continue
+              with open(input_file, 'r', encoding='utf-8') as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line or line.startswith('!') or line.startswith('#'):
+                          continue
 
-                  file_added = 0
-                  file_skipped_whitelist = 0
-                  file_skipped_duplicate = 0
+                      result = extract_domain(line)
+                      if not result:
+                          continue
 
-                  with open(input_file, 'r', encoding='utf-8') as f:
-                      for line in f:
-                          line = line.strip()
-                          if not line or line.startswith('!') or line.startswith('#'):
-                              continue
+                      rule_type, domain = result
 
-                          result = extract_domain(line)
-                          if not result:
-                              continue
+                      if is_whitelisted(domain):
+                          skipped_whitelist += 1
+                          continue
 
-                          rule_type, domain = result
+                      if is_duplicate(domain):
+                          skipped_duplicate += 1
+                          continue
 
-                          if is_whitelisted(domain):
-                              file_skipped_whitelist += 1
-                              continue
+                      if rule_type == 'IP-CIDR':
+                          shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
+                      elif rule_type == 'DOMAIN-SUFFIX':
+                          shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
+                      elif rule_type == 'DOMAIN':
+                          shadowrocket_rules.append(f"DOMAIN,{domain}")
 
-                          if is_duplicate(domain, seen_domains):
-                              file_skipped_duplicate += 1
-                              continue
+                      added += 1
 
-                          # Добавляем домен в seen_domains для проверки следующих источников
-                          seen_domains.add(domain)
-
-                          if rule_type == 'IP-CIDR':
-                              shadowrocket_rules.append(f"IP-CIDR,{domain}/32")
-                          elif rule_type == 'DOMAIN-SUFFIX':
-                              shadowrocket_rules.append(f"DOMAIN-SUFFIX,{domain}")
-                          elif rule_type == 'DOMAIN':
-                              shadowrocket_rules.append(f"DOMAIN,{domain}")
-
-                          file_added += 1
-
-                  total_added += file_added
-                  total_skipped_whitelist += file_skipped_whitelist
-                  total_skipped_duplicate += file_skipped_duplicate
-                  print(f"{input_file}: added={file_added}, skipped_duplicate={file_skipped_duplicate}, skipped_whitelist={file_skipped_whitelist}")
+              seen = set()
+              unique_rules = []
+              for rule in shadowrocket_rules:
+                  if rule not in seen:
+                      seen.add(rule)
+                      unique_rules.append(rule)
 
               with open(output_file, 'w', encoding='utf-8') as f:
-                  f.write('\n'.join(shadowrocket_rules))
+                  f.write('\n'.join(unique_rules))
 
-              print(f"---")
-              print(f"Total added:             {total_added}")
-              print(f"Total skipped duplicate: {total_skipped_duplicate}")
-              print(f"Total skipped whitelist: {total_skipped_whitelist}")
-              print(f"File saved: {output_file}")
+              print(f"Added:             {added}")
+              print(f"Skipped duplicate: {skipped_duplicate}")
+              print(f"Skipped whitelist: {skipped_whitelist}")
+              print(f"File saved:        {output_file}")
 
           convert_adguard_to_shadowrocket(
-              input_files=[
-                  'filter_2.txt',
-                  'filter_11.txt',
-                  'filter_3.txt',
-                  'filter_4.txt',
-                  'filter_14.txt',
-                  'filter_18.txt',
-                  'filter_19.txt',
-                  'filter_20.txt',
-                  'filter_21.txt',
-                  'filter_22.txt',
-                  'filter_15.txt',
-                  'filter_1.txt',
-              ],
-              output_file='shadowrocket_mobile_ads.conf',
-              existing_rules_file='shadowrocket_rules.conf'
+              'adguard_mobile_ads.txt',
+              'shadowrocket_mobile_ads.conf',
+              'shadowrocket_rules.conf'
           )
           EOF
 
