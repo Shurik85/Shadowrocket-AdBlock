@@ -39,6 +39,7 @@ jobs:
               # Список исключений
               whitelist = {
                   'ozon.ru',
+                  'ozone.ru',
               }
 
               def is_ip_address(s):
