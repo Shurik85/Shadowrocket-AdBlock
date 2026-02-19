@@ -40,6 +40,8 @@ jobs:
               whitelist = {
                   'ozon.ru',
                   'ozone.ru',
+                  'amazonaws.com',
+                  'aliyuncs.com',
               }
               
               def is_whitelisted(domain):
