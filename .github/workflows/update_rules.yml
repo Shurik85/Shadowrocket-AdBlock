@@ -1,0 +1,38 @@
+name: Update Shadowrocket Rules
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Запуск каждый день в 3:00 UTC
+  workflow_dispatch: # Позволяет запускать сборку вручную кнопкой
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run build script
+        run: python build.py
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add direct.list proxy.list block.list
+          if git diff --cached --quiet; then
+            echo "Изменений нет."
+          else
+            git commit -m "Auto-update rules: $(date +'%Y-%m-%d')"
+            git push
+          fi
