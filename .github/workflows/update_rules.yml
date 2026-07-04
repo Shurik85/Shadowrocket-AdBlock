@@ -17,6 +17,13 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          python -m pip install --upgrade pip
+          pip install protobuf
+
       - name: Run build script
         run: python build.py
 
