@@ -3,7 +3,7 @@ name: Update Shadowrocket Rules
 on:
   schedule:
     - cron: '0 3 * * *' # Запуск каждый день в 3:00 UTC
-  workflow_dispatch: # Позволяет запускать сборку вручную кнопкой
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,11 +11,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
 
       - name: Set up Python
         uses: actions/setup-python@v5
