@@ -2,14 +2,23 @@ import os
 import struct
 import urllib.request
 import subprocess
+import ipaddress
 
-# Ссылка на оригинальный geosite.dat, которую ты давал
+# Ссылки на оригинальные базы
 GEOSITE_URL = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+GEOIP_URL = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
 
-CONFIG = {
+# Конфигурация для Доменов (geosite)
+DOMAINS_CONFIG = {
     'direct.list': ['category-ru', 'apple', 'category-ip-geo-detect'],
     'proxy.list': ['instagram', 'meta', 'youtube', 'category-ai-!cn', 'category-media-ru-blocked', 'telegram', 'github'],
     'block.list': ['category-ads']
+}
+
+# Конфигурация для IP-адресов (geoip)
+IPS_CONFIG = {
+    'direct-ip.list': ['ru', 'private'],
+    'proxy-ip.list': ['telegram', 'facebook']
 }
 
 def download_file(url, filename):
@@ -18,16 +27,13 @@ def download_file(url, filename):
     with urllib.request.urlopen(req) as response, open(filename, 'wb') as out_file:
         out_file.write(response.read())
 
-def parse_geosite_dat(filename):
-    """
-    Парсит v2ray geosite.dat без использования сторонних утилит,
-    используя сгенерированный на лету protobuf класс.
-    """
-    # Создаем временную схему v2ray protobuf для парсинга
+def generate_protobuf_classes():
+    """Создает единую схему protobuf для geosite и geoip и компилирует её."""
     proto_content = """
     syntax = "proto3";
     package v2ray.core.app.router;
 
+    // --- Схема для Geosite ---
     message Domain {
       enum Type {
         Plain = 0;
@@ -47,15 +53,29 @@ def parse_geosite_dat(filename):
     message SiteListCollection {
       repeated SiteList error_list = 1;
     }
+
+    // --- Схема для Geoip ---
+    message CIDR {
+      bytes ip = 1;
+      uint32 prefix = 2;
+    }
+
+    message GeoIP {
+      string country_code = 1;
+      repeated CIDR cidr = 2;
+    }
+
+    message GeoIPList {
+      repeated GeoIP entry = 1;
+    }
     """
     with open("v2ray.proto", "w") as f:
         f.write(proto_content)
 
-    # Компилируем протобуф (в Ubuntu на GitHub Actions protoc уже доступен)
     subprocess.run(["protoc", "--python_out=.", "v2ray.proto"], check=True)
-    
+
+def parse_geosite(filename):
     import v2ray_pb2
-    
     with open(filename, "rb") as f:
         data = f.read()
 
@@ -67,7 +87,6 @@ def parse_geosite_dat(filename):
         tag = site_list.tag.lower()
         db[tag] = []
         for d in site_list.domain:
-            # Превращаем типы protobuf в формат Shadowrocket
             if d.type == v2ray_pb2.Domain.Full:
                 db[tag].append(f"DOMAIN,{d.value}")
             elif d.type == v2ray_pb2.Domain.Domain:
@@ -75,41 +94,90 @@ def parse_geosite_dat(filename):
             elif d.type == v2ray_pb2.Domain.Plain:
                 db[tag].append(f"DOMAIN-KEYWORD,{d.value}")
             elif d.type == v2ray_pb2.Domain.Regex:
-                # Пропускаем регулярки
                 continue
+    return db
+
+def parse_geoip(filename):
+    import v2ray_pb2
+    with open(filename, "rb") as f:
+        data = f.read()
+
+    geo_ip_list = v2ray_pb2.GeoIPList()
+    geo_ip_list.ParseFromString(data)
+
+    db = {}
+    for entry in geo_ip_list.entry:
+        tag = entry.country_code.lower()
+        db[tag] = []
+        for cidr in entry.cidr:
+            # Преобразуем массив байт обратно в читаемый IP
+            ip_bytes = cidr.ip
+            prefix = cidr.prefix
+            
+            try:
+                if len(ip_bytes) == 4: # IPv4
+                    ip_str = str(ipaddress.IPv4Address(ip_bytes))
+                    db[tag].append(f"IP-CIDR,{ip_str}/{prefix}")
+                elif len(ip_bytes) == 16: # IPv6
+                    ip_str = str(ipaddress.IPv6Address(ip_bytes))
+                    db[tag].append(f"IP-CIDR6,{ip_str}/{prefix}")
+            except Exception as e:
+                print(f"Ошибка конвертации IP: {e}")
+                continue
+    return db
+
+def main():
+    # 1. Подготовка
+    generate_protobuf_classes()
     
-    # Чистим сгенерированные файлы сборщика
+    # 2. Обработка GEOSITE (Домены)
+    download_file(GEOSITE_URL, "geosite.dat")
+    print("Парсинг базы данных geosite.dat...")
+    geosite_db = parse_geosite("geosite.dat")
+    
+    for output_file, categories in DOMAINS_CONFIG.items():
+        print(f"--- Формирование {output_file} ---")
+        written = set()
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            for cat in categories:
+                cat_l = cat.lower()
+                if cat_l in geosite_db:
+                    for rule in geosite_db[cat_l]:
+                        if rule not in written:
+                            outfile.write(f"{rule}\n")
+                            written.add(rule)
+        print(f"Создан {output_file} (правил: {len(written)})")
+        
+    os.remove("geosite.dat")
+
+    # 3. Обработка GEOIP (IP-адреса)
+    download_file(GEOIP_URL, "geoip.dat")
+    print("Парсинг базы данных geoip.dat...")
+    geoip_db = parse_geoip("geoip.dat")
+    
+    for output_file, categories in IPS_CONFIG.items():
+        print(f"--- Формирование {output_file} ---")
+        written = set()
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            for cat in categories:
+                cat_l = cat.lower()
+                if cat_l in geoip_db:
+                    for rule in geoip_db[cat_l]:
+                        if rule not in written:
+                            outfile.write(f"{rule}\n")
+                            written.add(rule)
+                else:
+                    print(f"Предупреждение: Категория IP '{cat}' не найдена в geoip.dat")
+        print(f"Создан {output_file} (правил: {len(written)})")
+        
+    os.remove("geoip.dat")
+
+    # Очистка временных файлов protobuf
     for f in ["v2ray.proto", "v2ray_pb2.py"]:
         if os.path.exists(f):
             os.remove(f)
             
-    return db
-
-def main():
-    download_file(GEOSITE_URL, "geosite.dat")
-    
-    print("Парсинг базы данных geosite.dat...")
-    db = parse_geosite_dat("geosite.dat")
-    
-    for output_file, categories in CONFIG.items():
-        print(f"--- Формирование файла {output_file} ---")
-        written_rules = set()
-        
-        with open(output_file, 'w', encoding='utf-8') as outfile:
-            for cat in categories:
-                cat_lower = cat.lower()
-                if cat_lower in db:
-                    for rule in db[cat_lower]:
-                        if rule not in written_rules:
-                            outfile.write(f"{rule}\n")
-                            written_rules.add(rule)
-                else:
-                    print(f"Предупреждение: Категория '{cat}' не найдена в базе!")
-                    
-        print(f"Файл {output_file} успешно создан. Записано правил: {len(written_rules)}")
-
-    if os.path.exists("geosite.dat"):
-        os.remove("geosite.dat")
+    print("Вся сборка успешно завершена!")
 
 if __name__ == "__main__":
     main()
