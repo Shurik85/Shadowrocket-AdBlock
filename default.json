@@ -1,55 +1,46 @@
 {
   "Name": "RoscomVPN",
   "GlobalProxy": "true",
-  "UseChunkFiles": "true",
-  "RemoteDns": "8.8.8.8",
-  "DomesticDns": "77.88.8.8",
-  "RemoteDNSType": "DoH",
-  "RemoteDNSDomain": "https://8.8.8.8/dns-query",
-  "RemoteDNSIP": "8.8.8.8",
-  "DomesticDNSType": "DoH",
-  "DomesticDNSDomain": "https://77.88.8.8/dns-query",
-  "DomesticDNSIP": "77.88.8.8",
-  "Geoipurl": "https://cdn.jsdelivr.net/gh/hydraponique/roscomvpn-geoip/release/geoip.dat",
-  "Geositeurl": "https://cdn.jsdelivr.net/gh/hydraponique/roscomvpn-geosite/release/geosite.dat",
-  "LastUpdated": "1789547552",
-  "DnsHosts": {
-    "lkfl2.nalog.ru": "213.24.64.175",
-    "lknpd.nalog.ru": "213.24.64.181"
-  },
   "RouteOrder": "block-proxy-direct",
+  "RemoteDNSType": "DoH",
+  "RemoteDNSDomain": "https://dns.quad9.net/dns-query",
+  "RemoteDNSIP": "9.9.9.9",
+  "DomesticDNSType": "DoH",
+  "DomesticDNSDomain": "https://common.dot.dns.yandex.net",
+  "DomesticDNSIP": "77.88.8.8",
+  "Geoipurl": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat",
+  "Geositeurl": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat",
+  "DnsHosts": {},
   "DirectSites": [
-    "geosite:private",
     "geosite:category-ru",
-    "geosite:whitelist",
-    "geosite:microsoft",
-    "geosite:apple",
-    "geosite:epicgames",
-    "geosite:riot",
-    "geosite:escapefromtarkov",
-    "geosite:steam",
-    "geosite:twitch",
-    "geosite:pinterest",
-    "geosite:faceit"
+    "geosite:category-ip-geo-detect",
+    "geosite:category-gov-ru",
+    "domain:f6.security",
+    "domain:rasswet.site",
+    "domain:achat.best",
+    "domain:ru",
+    "domain:su",
+    "domain:xn--p1ai"
   ],
   "DirectIp": [
     "geoip:private",
-    "geoip:direct"
+    "geoip:ru"
   ],
   "ProxySites": [
-    "geosite:google-play",
-    "geosite:github",
-    "geosite:twitch-ads",
     "geosite:youtube",
-    "geosite:telegram"
+    "geosite:telegram",
+    "geosite:instagram",
+    "geosite:meta",
+    "geosite:twitter"
   ],
-  "ProxyIp": [],
+  "ProxyIp": [
+    "geoip:telegram"
+  ],
   "BlockSites": [
-    "geosite:win-spy",
-    "geosite:torrent",
     "geosite:category-ads"
   ],
   "BlockIp": [],
   "DomainStrategy": "IPIfNonMatch",
-  "FakeDNS": "false"
+  "FakeDNS": "true",
+  "UseChunkFiles": "true"
 }
