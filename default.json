@@ -38,7 +38,9 @@
     "domain:happ.su"
   ],
   "ProxyIp": [
-    "geoip:telegram"
+    "geoip:telegram",
+    "geoip:facebook",
+    "geoip:twitter"
   ],
   "BlockSites": [
     "geosite:category-ads"
