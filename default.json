@@ -31,7 +31,8 @@
     "geosite:telegram",
     "geosite:instagram",
     "geosite:meta",
-    "geosite:twitter"
+    "geosite:twitter",
+    "domain:happ.su"
   ],
   "ProxyIp": [
     "geoip:telegram"
