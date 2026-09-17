@@ -16,6 +16,8 @@
     "geosite:category-ip-geo-detect",
     "geosite:category-gov-ru",
     "domain:f6.security",
+    "domain:alfa-bank.net",
+    "domain:alfaintra.net",
     "domain:rasswet.site",
     "domain:achat.best",
     "domain:ru",
@@ -24,7 +26,8 @@
   ],
   "DirectIp": [
     "geoip:private",
-    "geoip:ru"
+    "geoip:ru",
+    "151.101.195.6/32"
   ],
   "ProxySites": [
     "geosite:youtube",
