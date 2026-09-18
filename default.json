@@ -28,8 +28,7 @@
   ],
   "DirectIp": [
     "geoip:private",
-    "geoip:ru",
-    "151.101.195.6/32"
+    "geoip:ru"
   ],
   "ProxySites": [
     "geosite:youtube",
@@ -42,7 +41,8 @@
   "ProxyIp": [
     "geoip:telegram",
     "geoip:facebook",
-    "geoip:twitter"
+    "geoip:twitter",
+    "151.101.195.6/32"
   ],
   "BlockSites": [
     "geosite:category-ads"
