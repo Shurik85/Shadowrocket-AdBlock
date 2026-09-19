@@ -5,7 +5,7 @@
   "RemoteDNSType": "DoH",
   "RemoteDNSDomain": "https://dns.quad9.net/dns-query",
   "RemoteDNSIP": "9.9.9.9",
-  "DomesticDNSType": "TCP",
+  "DomesticDNSType": "",
   "DomesticDNSDomain": "",
   "DomesticDNSIP": "77.88.8.8",
   "Geoipurl": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat",
