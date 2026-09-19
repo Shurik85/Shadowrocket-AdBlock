@@ -5,8 +5,8 @@
   "RemoteDNSType": "DoH",
   "RemoteDNSDomain": "https://dns.quad9.net/dns-query",
   "RemoteDNSIP": "9.9.9.9",
-  "DomesticDNSType": "DoH",
-  "DomesticDNSDomain": "https://common.dot.dns.yandex.net",
+  "DomesticDNSType": "UDP",
+  "DomesticDNSDomain": "",
   "DomesticDNSIP": "77.88.8.8",
   "Geoipurl": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat",
   "Geositeurl": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat",
@@ -28,7 +28,8 @@
   ],
   "DirectIp": [
     "geoip:private",
-    "geoip:ru"
+    "geoip:ru",
+    "77.88.8.8/32"
   ],
   "ProxySites": [
     "geosite:youtube",
@@ -48,7 +49,7 @@
     "geosite:category-ads"
   ],
   "BlockIp": [],
-  "DomainStrategy": "IPIfNonMatch",
+  "DomainStrategy": "AsIs",
   "FakeDNS": "true",
   "UseChunkFiles": "true"
 }
