@@ -14,7 +14,6 @@
   "DirectSites": [
     "geosite:category-ru",
     "geosite:category-ip-geo-detect",
-    "geosite:category-gov-ru",
     "geosite:apple",
     "domain:f6.security",
     "domain:alfa-bank.net",
