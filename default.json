@@ -20,11 +20,7 @@
     "domain:alfa-bank.net",
     "domain:alfaintra.net",
     "domain:rasswet.site",
-    "domain:achat.best",
-    "domain:ru",
-    "domain:su",
-    "domain:xn--p1ai",
-    "domain:рф"
+    "domain:achat.best"
   ],
   "DirectIp": [
     "geoip:private",
