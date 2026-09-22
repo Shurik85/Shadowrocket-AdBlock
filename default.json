@@ -23,8 +23,7 @@
   ],
   "DirectIp": [
     "geoip:private",
-    "geoip:ru",
-    "77.88.8.8/32"
+    "geoip:ru"
   ],
   "ProxySites": [
     "geosite:youtube",
