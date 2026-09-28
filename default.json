@@ -19,7 +19,8 @@
     "domain:alfa-bank.net",
     "domain:alfaintra.net",
     "domain:rasswet.site",
-    "domain:achat.best"
+    "domain:achat.best",
+    "domain:netcraze.cloud"
   ],
   "DirectIp": [
     "geoip:private",
