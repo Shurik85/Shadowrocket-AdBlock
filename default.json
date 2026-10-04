@@ -26,6 +26,7 @@
     "geoip:private",
     "geoip:ru"
   ],
+  "DirectPort": "25,465,587,143,993,995",
   "ProxySites": [
     "geosite:youtube",
     "geosite:telegram",
