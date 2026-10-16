@@ -20,13 +20,26 @@
     "domain:alfaintra.net",
     "domain:rasswet.site",
     "domain:achat.best",
-    "domain:netcraze.cloud"
+    "domain:netcraze.cloud",
+    "domain:smtp.yandex.ru",
+    "domain:imap.yandex.ru",
+    "domain:pop.yandex.ru",
+    "domain:smtp.yandex.com",
+    "domain:imap.yandex.com",
+    "domain:pop.yandex.com",
+    "domain:smtp.mail.ru",
+    "domain:imap.mail.ru",
+    "domain:pop.mail.ru",
+    "domain:smtp.gmail.com",
+    "domain:imap.gmail.com",
+    "domain:pop.gmail.com",
+    "domain:smtp-mail.outlook.com",
+    "domain:outlook.office365.com"
   ],
   "DirectIp": [
     "geoip:private",
     "geoip:ru"
   ],
-  "DirectPort": "25,465,587,143,993,995",
   "ProxySites": [
     "geosite:youtube",
     "geosite:telegram",
@@ -42,10 +55,24 @@
     "151.101.195.6/32"
   ],
   "BlockSites": [
-    "geosite:category-ads"
+    "domain:doubleclick.net",
+    "domain:googleadservices.com",
+    "domain:googlesyndication.com",
+    "domain:adservice.google.com",
+    "domain:an.yandex.ru",
+    "domain:bs.yandex.ru",
+    "domain:mc.yandex.ru",
+    "domain:ad.mail.ru",
+    "domain:rs.mail.ru",
+    "domain:applovin.com",
+    "domain:appsflyer.com",
+    "domain:adjust.com",
+    "domain:vungle.com",
+    "domain:unityads.unity3d.com",
+    "domain:scorecardresearch.com"
   ],
   "BlockIp": [],
-  "DomainStrategy": "IPIfNonMatch",
+  "DomainStrategy": "AsIs",
   "FakeDNS": "true",
   "UseChunkFiles": "true"
 }
