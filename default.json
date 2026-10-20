@@ -37,8 +37,7 @@
     "domain:outlook.office365.com"
   ],
   "DirectIp": [
-    "geoip:private",
-    "geoip:ru"
+    "geoip:private"
   ],
   "ProxySites": [
     "geosite:youtube",
